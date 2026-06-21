@@ -227,6 +227,9 @@
       <span>📅 Skenario Growth Rate BTC per Tahun (%)</span>
       <span id="accordionArrow">▼</span>
     </button>
+    <p style="font-size:0.72rem;color:var(--text-dim);margin:6px 2px 0;">
+      Isi <strong>persentase</strong> kenaikan/penurunan harga per tahun (bukan harga absolut). Contoh: ketik <code>20</code> untuk naik 20%, atau <code>-15</code> untuk turun 15%.
+    </p>
     <div class="accordion-body" id="accordionBody">
       <!-- 10 year inputs injected by JS -->
     </div>
@@ -309,8 +312,8 @@ for(let y=1;y<=10;y++){
   const div = document.createElement('div');
   div.className = 'year-field';
   div.innerHTML = `
-    <label>Tahun ${y}</label>
-    <input type="number" id="year${y}" value="0" step="0.1">
+    <label>Tahun ${y} (%)</label>
+    <input type="number" id="year${y}" value="0" step="0.1" placeholder="cth: 20">
   `;
   accordionBody.appendChild(div);
 }
@@ -661,23 +664,83 @@ function renderResultPanel(histA, histB, wipeoutMonth){
 /* ============================================================
    MAIN RUN
 ============================================================ */
-function runSimulation(){
-  const capital = parseFloat(document.getElementById('initialCapital').value) || 0;
-  const initialPrice = parseFloat(document.getElementById('initialPrice').value) || 1;
+function hideInputError(){
+  const box = document.getElementById('inputErrorBox');
+  if(box) box.style.display = 'none';
+}
 
-  const yearlyGrowth = [];
-  for(let y=1;y<=10;y++){
-    yearlyGrowth.push(parseFloat(document.getElementById('year'+y).value) || 0);
+function showInputError(message){
+  let box = document.getElementById('inputErrorBox');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'inputErrorBox';
+    box.style.background = 'rgba(246,70,93,0.12)';
+    box.style.border = '1px solid #F6465D';
+    box.style.color = '#F6465D';
+    box.style.borderRadius = '8px';
+    box.style.padding = '10px 12px';
+    box.style.fontSize = '0.8rem';
+    box.style.marginTop = '10px';
+    document.getElementById('runBtn').insertAdjacentElement('afterend', box);
   }
+  box.textContent = '⚠️ ' + message;
+  box.style.display = 'block';
+}
 
-  const prices = buildMonthlyPrices(initialPrice, yearlyGrowth);
+function runSimulation(){
+  try{
+    hideInputError();
 
-  const resultA = simulateStrategyA(capital, prices);
-  const resultB = simulateStrategyB(capital, prices);
+    const capital = parseFloat(document.getElementById('initialCapital').value) || 0;
+    const initialPrice = parseFloat(document.getElementById('initialPrice').value) || 1;
 
-  renderChart(resultA.history, resultB.history, resultA.wipeoutMonth);
-  renderResultPanel(resultA.history, resultB.history, resultA.wipeoutMonth);
-  renderLog();
+    const yearlyGrowth = [];
+    for(let y=1;y<=10;y++){
+      yearlyGrowth.push(parseFloat(document.getElementById('year'+y).value) || 0);
+    }
+
+    // GUARD: validasi rentang wajar growth rate per tahun.
+    // Ini adalah PERSENTASE (misal 20 = +20%, -15 = -15%), bukan harga absolut.
+    // Dibatasi -99% s/d +1000% per tahun supaya tidak menghasilkan angka astronomis
+    // yang bisa membuat Chart.js freeze saat menggambar skala sumbu.
+    const invalidYear = yearlyGrowth.findIndex(g => g < -99 || g > 1000);
+    if(invalidYear !== -1){
+      showInputError(
+        `Nilai Tahun ${invalidYear+1} (${yearlyGrowth[invalidYear]}) di luar rentang wajar. ` +
+        `Kolom ini untuk PERSENTASE perubahan harga per tahun (contoh: 20 untuk naik 20%, -15 untuk turun 15%), ` +
+        `bukan harga absolut. Gunakan nilai antara -99 dan 1000.`
+      );
+      return;
+    }
+
+    if(capital <= 0){
+      showInputError('Modal Awal harus lebih besar dari 0.');
+      return;
+    }
+    if(initialPrice <= 0){
+      showInputError('Harga BTC Awal harus lebih besar dari 0.');
+      return;
+    }
+
+    const prices = buildMonthlyPrices(initialPrice, yearlyGrowth);
+
+    // GUARD: pastikan tidak ada harga yang jadi Infinity/NaN sebelum lanjut ke Chart.js
+    const hasInvalidPrice = prices.some(p => !isFinite(p) || isNaN(p) || p < 0);
+    if(hasInvalidPrice){
+      showInputError('Kombinasi input menghasilkan angka harga yang tidak valid (terlalu ekstrem). Coba kecilkan nilai persentase di salah satu tahun.');
+      return;
+    }
+
+    const resultA = simulateStrategyA(capital, prices);
+    const resultB = simulateStrategyB(capital, prices);
+
+    renderChart(resultA.history, resultB.history, resultA.wipeoutMonth);
+    renderResultPanel(resultA.history, resultB.history, resultA.wipeoutMonth);
+    renderLog();
+  } catch(err){
+    showInputError('Terjadi kesalahan saat menjalankan simulasi: ' + err.message + '. Coba periksa kembali input Anda.');
+    console.error(err);
+  }
 }
 
 document.getElementById('runBtn').addEventListener('click', runSimulation);
