@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC Simulator — Backloan vs Hold</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #0B0E11;
+    --card: #181A20;
+    --border: #2B2F36;
+    --text: #EAECEF;
+    --text-dim: #848E9C;
+    --green: #00D998;
+    --red: #F6465D;
+    --orange: #F0A020;
+    --blue: #3B82F6;
+    --yellow: #D4B106;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:40px;
+  }
+  .container{max-width:1100px;margin:0 auto;padding:14px;}
+  header{padding:18px 14px 10px;text-align:center;}
+  header h1{font-size:1.3rem;margin:0 0 4px;color:var(--text);}
+  header p{font-size:0.8rem;color:var(--text-dim);margin:0;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-size:0.95rem;
+    margin:0 0 12px;
+    color:var(--text);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  /* Input form */
+  .input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+  label{display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:4px;}
+  input[type=number]{
+    width:100%;
+    background:#0B0E11;
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:10px;
+    border-radius:8px;
+    font-size:0.9rem;
+    min-height:44px;
+  }
+  input[type=number]:focus{outline:none;border-color:var(--green);}
+
+  .accordion-toggle{
+    width:100%;
+    background:#0B0E11;
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:12px;
+    border-radius:8px;
+    font-size:0.85rem;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
+    min-height:44px;
+  }
+  .accordion-body{
+    display:none;
+    margin-top:10px;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+  }
+  .accordion-body.open{display:grid;}
+  @media(min-width:600px){
+    .accordion-body{grid-template-columns:repeat(5,1fr);}
+  }
+  .year-field label{font-size:0.7rem;}
+
+  .btn-primary{
+    width:100%;
+    background:var(--green);
+    color:#04140F;
+    font-weight:700;
+    border:none;
+    padding:13px;
+    border-radius:10px;
+    font-size:0.95rem;
+    cursor:pointer;
+    margin-top:6px;
+    min-height:46px;
+  }
+  .btn-primary:active{opacity:0.85;}
+
+  /* Chart */
+  .chart-wrap{position:relative;height:360px;}
+  .legend-note{font-size:0.68rem;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;}
+
+  /* Result Panel */
+  .result-grid{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media(min-width:640px){.result-grid{grid-template-columns:1fr 1fr;}}
+  .result-card{
+    background:#0F1216;
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+    text-align:center;
+    position:relative;
+    transition:all .3s;
+  }
+  .result-card.winner{
+    border-color:var(--green);
+    box-shadow:0 0 18px rgba(0,217,152,0.25);
+  }
+  .result-card.wiped{
+    border-color:var(--red);
+    box-shadow:0 0 18px rgba(246,70,93,0.2);
+  }
+  .result-card h3{font-size:0.85rem;color:var(--text-dim);margin:0 0 10px;font-weight:600;}
+  .result-card .big-num{font-size:1.5rem;font-weight:700;margin:4px 0;}
+  .result-card .sub-num{font-size:0.85rem;color:var(--text-dim);}
+  .badge-winner{
+    display:inline-block;
+    background:var(--green);
+    color:#04140F;
+    font-size:0.7rem;
+    font-weight:700;
+    padding:4px 10px;
+    border-radius:20px;
+    margin-bottom:8px;
+  }
+  .badge-wiped{
+    display:inline-block;
+    background:var(--red);
+    color:#fff;
+    font-size:0.7rem;
+    font-weight:700;
+    padding:4px 10px;
+    border-radius:20px;
+    margin-bottom:8px;
+  }
+  .vs-divider{
+    text-align:center;
+    font-size:0.75rem;
+    color:var(--text-dim);
+    margin:4px 0;
+  }
+  .winner-banner{
+    text-align:center;
+    padding:10px;
+    border-radius:10px;
+    background:rgba(0,217,152,0.1);
+    border:1px solid var(--green);
+    font-size:0.85rem;
+    font-weight:700;
+    margin-bottom:14px;
+  }
+  .winner-banner.b-wins{
+    background:rgba(234,236,239,0.08);
+    border-color:var(--text-dim);
+    color:var(--text);
+  }
+
+  /* Log */
+  .log-list{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
+  .log-item{
+    background:#0F1216;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:0.75rem;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    align-items:center;
+  }
+  .log-tag{
+    font-size:0.65rem;
+    font-weight:700;
+    padding:2px 7px;
+    border-radius:6px;
+    white-space:nowrap;
+  }
+  .tag-roll{background:rgba(59,130,246,0.18);color:var(--blue);}
+  .tag-cut{background:rgba(240,160,32,0.18);color:var(--orange);}
+  .tag-wipe{background:rgba(246,70,93,0.2);color:var(--red);}
+  .log-empty{color:var(--text-dim);font-size:0.8rem;text-align:center;padding:20px 0;}
+
+  footer{text-align:center;color:var(--text-dim);font-size:0.7rem;margin-top:20px;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>⚡ BTC Strategy Simulator</h1>
+    <p>Strategi A: Backloan (Leverage Otomatis) vs Strategi B: Buy &amp; Hold Pasif — 10 Tahun</p>
+  </header>
+
+  <!-- INPUT PANEL -->
+  <div class="card">
+    <h2>📋 Parameter Simulasi</h2>
+    <div class="input-row">
+      <div>
+        <label>Modal Awal (USD)</label>
+        <input type="number" id="initialCapital" value="10000" min="0">
+      </div>
+      <div>
+        <label>Harga BTC Awal (USD)</label>
+        <input type="number" id="initialPrice" value="60000" min="0">
+      </div>
+    </div>
+
+    <button class="accordion-toggle" id="accordionBtn">
+      <span>📅 Skenario Growth Rate BTC per Tahun (%)</span>
+      <span id="accordionArrow">▼</span>
+    </button>
+    <div class="accordion-body" id="accordionBody">
+      <!-- 10 year inputs injected by JS -->
+    </div>
+
+    <button class="btn-primary" id="runBtn">▶ Jalankan Simulasi</button>
+  </div>
+
+  <!-- CHART PANEL -->
+  <div class="card">
+    <h2>📈 Grafik Komparasi (10 Tahun)</h2>
+    <div class="chart-wrap">
+      <canvas id="mainChart"></canvas>
+    </div>
+    <div class="legend-note">
+      <span class="dot" style="background:#00D998"></span>Net Worth A (Backloan)&nbsp;&nbsp;
+      <span class="dot" style="background:#EAECEF"></span>Net Worth B (Hold)&nbsp;&nbsp;
+      <span class="dot" style="background:#F0A020"></span>Harga Pasar BTC&nbsp;&nbsp;
+      <span class="dot" style="background:#3B82F6"></span>BTC A&nbsp;&nbsp;
+      <span class="dot" style="background:#D4B106"></span>BTC B
+      <br>Sumbu kiri = USD (Net Worth &amp; Harga) · Sumbu kanan = Jumlah Keping BTC · ⚠ = Likuidasi Total
+    </div>
+  </div>
+
+  <!-- RESULT PANEL -->
+  <div class="card">
+    <h2>🏁 Hasil Akhir — Tahun ke-10</h2>
+    <div id="winnerBanner" class="winner-banner" style="display:none;"></div>
+    <div class="result-grid">
+      <div class="result-card" id="cardA">
+        <div id="badgeA"></div>
+        <h3>STRATEGI A — BACKLOAN</h3>
+        <div class="big-num" id="btcA_final" style="color:var(--blue)">-</div>
+        <div class="sub-num">Total BTC Akhir</div>
+        <hr style="border-color:var(--border);margin:10px 0;">
+        <div class="big-num" id="nwA_final" style="color:var(--green)">-</div>
+        <div class="sub-num">Net Worth Akhir (USD)</div>
+      </div>
+      <div class="result-card" id="cardB">
+        <div id="badgeB"></div>
+        <h3>STRATEGI B — HOLD PASIF</h3>
+        <div class="big-num" id="btcB_final" style="color:var(--yellow)">-</div>
+        <div class="sub-num">Total BTC Akhir</div>
+        <hr style="border-color:var(--border);margin:10px 0;">
+        <div class="big-num" id="nwB_final" style="color:var(--text)">-</div>
+        <div class="sub-num">Net Worth Akhir (USD)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG PANEL -->
+  <div class="card">
+    <h2>📜 Log Aktivitas Bot — Strategi A</h2>
+    <div class="log-list" id="logList">
+      <div class="log-empty">Jalankan simulasi untuk melihat aktivitas bot di sini.</div>
+    </div>
+  </div>
+
+  <footer>Dibuat untuk simulasi edukatif. Bukan saran finansial.</footer>
+</div>
+
+<script>
+/* ============================================================
+   KONSTANTA & STATE
+============================================================ */
+const TARGET_LTV = 0.50;
+const ROLL_TRIGGER = 0.47;   // gulung kalau LTV < 47%
+const CUT_TRIGGER  = 0.53;   // likuidasi sebagian kalau LTV > 53%
+const LIQUIDATION_LTV = 0.85;
+const ANNUAL_INTEREST = 0.06;
+const MONTHLY_INTEREST = ANNUAL_INTEREST / 12; // proporsional per bulan
+const MONTHS = 120;
+
+let activityLog = [];
+
+/* ============================================================
+   BUILD YEAR INPUT FIELDS (10 tahun)
+============================================================ */
+const accordionBody = document.getElementById('accordionBody');
+for(let y=1;y<=10;y++){
+  const div = document.createElement('div');
+  div.className = 'year-field';
+  div.innerHTML = `
+    <label>Tahun ${y}</label>
+    <input type="number" id="year${y}" value="0" step="0.1">
+  `;
+  accordionBody.appendChild(div);
+}
+
+document.getElementById('accordionBtn').addEventListener('click', ()=>{
+  const body = document.getElementById('accordionBody');
+  const arrow = document.getElementById('accordionArrow');
+  body.classList.toggle('open');
+  arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
+});
+
+/* ============================================================
+   HELPER: Expand 10 nilai growth tahunan -> 120 harga bulanan
+   Menggunakan compound monthly rate: (1+r)^(1/12) - 1
+============================================================ */
+function buildMonthlyPrices(initialPrice, yearlyGrowthArr){
+  const prices = [initialPrice]; // index 0 = bulan 0
+  let currentPrice = initialPrice;
+  for(let y=0;y<10;y++){
+    const annualRate = yearlyGrowthArr[y] / 100;
+    const monthlyRate = Math.pow(1 + annualRate, 1/12) - 1;
+    for(let m=0;m<12;m++){
+      currentPrice = currentPrice * (1 + monthlyRate);
+      prices.push(currentPrice);
+    }
+  }
+  return prices; // length 121 (bulan 0..120)
+}
+
+/* ============================================================
+   STRATEGI A — BACKLOAN ENGINE
+============================================================ */
+function simulateStrategyA(capital, prices){
+  const history = [];
+  activityLog = [];
+
+  // Bulan 0: lock LTV di 50%
+  // Total Nilai Aset (USD) = Modal / (1 - Target_LTV)
+  const initialAssetValueUSD = capital / (1 - TARGET_LTV);
+  let totalBTC = initialAssetValueUSD / prices[0];
+  let debt = initialAssetValueUSD - capital; // hutang awal = selisih aset-modal = 50% dari nilai aset
+  let wipeoutMonth = null;
+
+  history.push({
+    month:0,
+    price:prices[0],
+    btc:totalBTC,
+    debt:debt,
+    netWorth: totalBTC*prices[0] - debt,
+    ltv: debt/(totalBTC*prices[0])
+  });
+
+  for(let m=1; m<=MONTHS; m++){
+    const price = prices[m];
+
+    if(wipeoutMonth !== null){
+      // sudah wipeout, semua nol
+      history.push({month:m, price, btc:0, debt:0, netWorth:0, ltv:0, wiped:true});
+      continue;
+    }
+
+    // bunga berjalan dulu (proporsional bulanan terhadap saldo hutang)
+    debt = debt * (1 + MONTHLY_INTEREST);
+
+    let assetValue = totalBTC * price;
+    let ltv = debt / assetValue;
+
+    // cek likuidasi total dulu
+    if(ltv >= LIQUIDATION_LTV){
+      wipeoutMonth = m;
+      activityLog.push({
+        month:m, type:'wipe',
+        text:`💥 LIKUIDASI TOTAL — LTV mencapai ${(ltv*100).toFixed(1)}% (≥85%). Posisi nol.`,
+        ltvBefore: ltv, ltvAfter: 0, btcChange: -totalBTC
+      });
+      totalBTC = 0; debt = 0;
+      history.push({month:m, price, btc:0, debt:0, netWorth:0, ltv:0, wiped:true, wipeoutEvent:true});
+      continue;
+    }
+
+    // cek gulung (rolling leverage)
+    if(ltv < ROLL_TRIGGER){
+      // pinjam tambahan agar LTV balik ke target 50%, beli BTC lagi
+      const targetDebt = TARGET_LTV * assetValue / (1 - TARGET_LTV) ; // turunan dari (debt+newDebt)/(assetValue+newDebt*1)=target -> disederhanakan di bawah
+      // Pendekatan langsung: tambah pinjaman X, beli BTC senilai X, sehingga (debt+X)/(assetValue+X)=TARGET_LTV
+      const X = (TARGET_LTV*assetValue - debt) / (1 - TARGET_LTV);
+      const btcBought = X / price;
+      const ltvBefore = ltv;
+      debt += X;
+      totalBTC += btcBought;
+      assetValue = totalBTC * price;
+      ltv = debt/assetValue;
+      activityLog.push({
+        month:m, type:'roll',
+        text:`🔄 GULUNG — Pinjam $${X.toFixed(2)} USDT, beli ${btcBought.toFixed(6)} BTC.`,
+        ltvBefore, ltvAfter: ltv, btcChange: btcBought
+      });
+    }
+    // cek likuidasi sebagian (cut leverage)
+    else if(ltv > CUT_TRIGGER){
+      // jual BTC sejumlah Y untuk bayar hutang agar LTV balik ke target 50%
+      const Y = (debt - TARGET_LTV*assetValue) / (1 - TARGET_LTV);
+      const btcSold = Y / price;
+      const ltvBefore = ltv;
+      debt -= Y;
+      totalBTC -= btcSold;
+      assetValue = totalBTC * price;
+      ltv = debt/assetValue;
+      activityLog.push({
+        month:m, type:'cut',
+        text:`✂️ LIKUIDASI SEBAGIAN — Jual ${btcSold.toFixed(6)} BTC, bayar $${Y.toFixed(2)} hutang.`,
+        ltvBefore, ltvAfter: ltv, btcChange: -btcSold
+      });
+    }
+
+    const netWorth = totalBTC*price - debt;
+    history.push({month:m, price, btc:totalBTC, debt, netWorth, ltv});
+  }
+
+  return {history, wipeoutMonth};
+}
+
+/* ============================================================
+   STRATEGI B — HOLD ENGINE
+============================================================ */
+function simulateStrategyB(capital, prices){
+  const totalBTC = capital / prices[0];
+  const history = [];
+  for(let m=0;m<=MONTHS;m++){
+    history.push({
+      month:m,
+      price:prices[m],
+      btc: totalBTC,
+      netWorth: totalBTC * prices[m]
+    });
+  }
+  return {history};
+}
+
+/* ============================================================
+   CHART RENDER
+============================================================ */
+let mainChart = null;
+
+function renderChart(histA, histB, wipeoutMonth){
+  const labels = histA.map(h=>h.month);
+
+  const nwA = histA.map(h=>h.netWorth);
+  const nwB = histB.map(h=>h.netWorth);
+  const priceLine = histA.map(h=>h.price);
+  const btcA = histA.map(h=>h.btc);
+  const btcB = histB.map(h=>h.btc);
+
+  // point styling untuk marker wipeout di dataset Net Worth A
+  const pointRadiusA = histA.map(h=> h.wipeoutEvent ? 7 : 0);
+  const pointStyleA  = histA.map(h=> h.wipeoutEvent ? 'triangle' : 'circle');
+  const pointColorA  = histA.map(h=> h.wipeoutEvent ? '#F6465D' : '#00D998');
+
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if(mainChart) mainChart.destroy();
+
+  mainChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Net Worth A (Backloan)',
+          data: nwA,
+          borderColor:'#00D998',
+          backgroundColor:'transparent',
+          borderWidth:2.5,
+          yAxisID:'yUSD',
+          pointRadius: pointRadiusA,
+          pointStyle: pointStyleA,
+          pointBackgroundColor: pointColorA,
+          pointBorderColor: pointColorA,
+          tension:0.1,
+          segment:{
+            borderColor: ctx => {
+              const idx = ctx.p1DataIndex;
+              if(wipeoutMonth !== null && idx >= wipeoutMonth) return 'rgba(246,70,93,0.35)';
+              return '#00D998';
+            }
+          }
+        },
+        {
+          label:'Net Worth B (Hold Pasif)',
+          data: nwB,
+          borderColor:'#EAECEF',
+          backgroundColor:'transparent',
+          borderWidth:2.5,
+          yAxisID:'yUSD',
+          pointRadius:0,
+          tension:0.1
+        },
+        {
+          label:'Harga Pasar BTC',
+          data: priceLine,
+          borderColor:'rgba(240,160,32,0.6)',
+          backgroundColor:'transparent',
+          borderWidth:1.5,
+          borderDash:[6,4],
+          yAxisID:'yUSD',
+          pointRadius:0,
+          tension:0.1
+        },
+        {
+          label:'BTC Strategi A',
+          data: btcA,
+          borderColor:'#3B82F6',
+          backgroundColor:'transparent',
+          borderWidth:2,
+          yAxisID:'yBTC',
+          pointRadius:0,
+          tension:0.1
+        },
+        {
+          label:'BTC Strategi B',
+          data: btcB,
+          borderColor:'#D4B106',
+          backgroundColor:'transparent',
+          borderWidth:1.5,
+          yAxisID:'yBTC',
+          pointRadius:0,
+          tension:0.1
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#181A20',
+          borderColor:'#2B2F36',
+          borderWidth:1,
+          titleColor:'#EAECEF',
+          bodyColor:'#EAECEF',
+          callbacks:{
+            title: (items)=> {
+              const idx = items[0].dataIndex;
+              if(wipeoutMonth !== null && idx === wipeoutMonth){
+                return `Bulan ${idx} — 💥 LIKUIDASI TOTAL`;
+              }
+              return `Bulan ${idx}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{color:'#848E9C', maxTicksLimit:13},
+          grid:{color:'#1E2228'}
+        },
+        yUSD:{
+          type:'linear',
+          position:'left',
+          ticks:{color:'#848E9C', callback:(v)=>'$'+v.toLocaleString()},
+          grid:{color:'#1E2228'}
+        },
+        yBTC:{
+          type:'linear',
+          position:'right',
+          ticks:{color:'#848E9C', callback:(v)=>v.toFixed(2)},
+          grid:{display:false}
+        }
+      }
+    }
+  });
+}
+
+/* ============================================================
+   RENDER LOG AKTIVITAS
+============================================================ */
+function renderLog(){
+  const logList = document.getElementById('logList');
+  if(activityLog.length === 0){
+    logList.innerHTML = '<div class="log-empty">Tidak ada aktivitas bot — LTV stabil di rentang 47%-53% sepanjang simulasi.</div>';
+    return;
+  }
+  logList.innerHTML = '';
+  // tampilkan terbaru di atas
+  [...activityLog].reverse().forEach(ev=>{
+    const tagClass = ev.type === 'roll' ? 'tag-roll' : (ev.type === 'cut' ? 'tag-cut' : 'tag-wipe');
+    const tagText  = ev.type === 'roll' ? 'GULUNG' : (ev.type === 'cut' ? 'LIKUIDASI' : 'WIPEOUT');
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.innerHTML = `
+      <span><strong>Bln ${ev.month}</strong> — ${ev.text}<br>
+      <span style="color:#848E9C">LTV: ${(ev.ltvBefore*100).toFixed(1)}% → ${(ev.ltvAfter*100).toFixed(1)}%</span></span>
+      <span class="log-tag ${tagClass}">${tagText}</span>
+    `;
+    logList.appendChild(div);
+  });
+}
+
+/* ============================================================
+   RENDER PANEL HASIL AKHIR
+============================================================ */
+function renderResultPanel(histA, histB, wipeoutMonth){
+  const finalA = histA[histA.length-1];
+  const finalB = histB[histB.length-1];
+
+  document.getElementById('btcA_final').textContent = finalA.btc.toFixed(6) + ' BTC';
+  document.getElementById('nwA_final').textContent = '$' + finalA.netWorth.toLocaleString(undefined,{maximumFractionDigits:2});
+  document.getElementById('btcB_final').textContent = finalB.btc.toFixed(6) + ' BTC';
+  document.getElementById('nwB_final').textContent = '$' + finalB.netWorth.toLocaleString(undefined,{maximumFractionDigits:2});
+
+  const cardA = document.getElementById('cardA');
+  const cardB = document.getElementById('cardB');
+  const badgeA = document.getElementById('badgeA');
+  const badgeB = document.getElementById('badgeB');
+  const banner = document.getElementById('winnerBanner');
+
+  cardA.classList.remove('winner','wiped');
+  cardB.classList.remove('winner','wiped');
+  badgeA.innerHTML = '';
+  badgeB.innerHTML = '';
+
+  if(wipeoutMonth !== null){
+    cardA.classList.add('wiped');
+    badgeA.innerHTML = '<span class="badge-wiped">💀 LIKUIDASI TOTAL (Bln '+wipeoutMonth+')</span>';
+    cardB.classList.add('winner');
+    badgeB.innerHTML = '<span class="badge-winner">🏆 PEMENANG PERFORMA</span>';
+    banner.style.display = 'block';
+    banner.className = 'winner-banner b-wins';
+    banner.textContent = '⚠️ Strategi A terlikuidasi total di bulan ke-'+wipeoutMonth+'. Strategi B (Hold) otomatis menang.';
+  } else if(finalA.netWorth > finalB.netWorth){
+    cardA.classList.add('winner');
+    badgeA.innerHTML = '<span class="badge-winner">🏆 PEMENANG PERFORMA</span>';
+    banner.style.display = 'block';
+    banner.className = 'winner-banner';
+    const diff = finalA.netWorth - finalB.netWorth;
+    banner.textContent = '🚀 Strategi A (Backloan) menang dengan selisih Net Worth +$'+diff.toLocaleString(undefined,{maximumFractionDigits:2});
+  } else {
+    cardB.classList.add('winner');
+    badgeB.innerHTML = '<span class="badge-winner">🏆 PEMENANG PERFORMA</span>';
+    banner.style.display = 'block';
+    banner.className = 'winner-banner b-wins';
+    const diff = finalB.netWorth - finalA.netWorth;
+    banner.textContent = '🛡️ Strategi B (Hold) menang dengan selisih Net Worth +$'+diff.toLocaleString(undefined,{maximumFractionDigits:2});
+  }
+}
+
+/* ============================================================
+   MAIN RUN
+============================================================ */
+function runSimulation(){
+  const capital = parseFloat(document.getElementById('initialCapital').value) || 0;
+  const initialPrice = parseFloat(document.getElementById('initialPrice').value) || 1;
+
+  const yearlyGrowth = [];
+  for(let y=1;y<=10;y++){
+    yearlyGrowth.push(parseFloat(document.getElementById('year'+y).value) || 0);
+  }
+
+  const prices = buildMonthlyPrices(initialPrice, yearlyGrowth);
+
+  const resultA = simulateStrategyA(capital, prices);
+  const resultB = simulateStrategyB(capital, prices);
+
+  renderChart(resultA.history, resultB.history, resultA.wipeoutMonth);
+  renderResultPanel(resultA.history, resultB.history, resultA.wipeoutMonth);
+  renderLog();
+}
+
+document.getElementById('runBtn').addEventListener('click', runSimulation);
+
+// Jalankan sekali otomatis saat load dengan nilai default
+window.addEventListener('DOMContentLoaded', runSimulation);
+</script>
+</body>
+</html>
